@@ -24,10 +24,7 @@
 
 (when (version<= "29" emacs-version)
   (defun buttercup-format-spec (format specification)
-    "Return a string based on FORMAT and SPECIFICATION.
-
-This is a wrapper around `format-spec', which see. This also adds
-a call to `save-match-data', as `format-spec' modifies that."
+    "Return a string based on FORMAT and SPECIFICATION."
     (save-match-data
       (format-spec format (--map
                            (cons (car it) (lambda () (cdr it)))
@@ -48,9 +45,7 @@ a call to `save-match-data', as `format-spec' modifies that."
       (funcall fn fname))))
 
 (defun vulpea-test--init (&optional no-setup)
-  "Initialize testing environment.
-
-Unless NO-SETUP is non-nil, setup vulpea db."
+  "Initialize testing environment."
   (let ((original-dir vulpea-test-directory)
         (new-dir (expand-file-name (make-temp-name "note-files") temporary-file-directory)))
     (message "init test directory %s setup in %s"
@@ -75,8 +70,7 @@ Unless NO-SETUP is non-nil, setup vulpea db."
       (mapcar #'buttercup--expr-and-value (list file value))
     (let* ((content (vulpea-test--map-file
                      (lambda (_)
-                       (buffer-substring-no-properties (point-min)
-                                                       (point-max)))
+                       (buffer-substring-no-properties (point-min) (point-max)))
                      file))
            (spec (format-spec-make
                   ?F (format "%S" file-expr)
@@ -94,18 +88,13 @@ Unless NO-SETUP is non-nil, setup vulpea db."
 
 (cl-defun completion-for (&key title tags)
   "Return completion for TITLE and TAGS matchers."
-  (when-let ((note
-              (seq-find
-                (lambda (note)
-                  (let ((res (and (or (null title) (string-equal title (vulpea-note-title note)))
-                                  (or (null tags)
-                                      (seq-every-p
-                                       (lambda (x)
-                                         (seq-contains-p (vulpea-note-tags note) x))
-                                       tags)))))
-                    res))
-                (vulpea-db-query))))
-    (vulpea-select-describe note)))
+  (let* ((query (concat "SELECT * FROM notes WHERE 1=1"
+                        (when title (format " AND title = '%s'" title))
+                        (when tags
+                          (format " AND tag IN (%s)"
+                                  (mapconcat (lambda (tag) (format "'%s'" tag)) tags ", "))))))
+    (when-let ((note (vulpea-db-query query)))
+      (vulpea-select-describe note))))
 
 (defun global-filter-fn (x)
   "Just some dummy global filter for X."
